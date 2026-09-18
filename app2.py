@@ -568,13 +568,7 @@ elif st.session_state.mode == 'add':
         st.markdown("<br>", unsafe_allow_html=True)
         col_cancel, col_save = st.columns([1, 1])
         
-        with col_cancel:
-            cancel_button = st.form_submit_button(label="Anuluj (Cancel)", use_container_width=True)
-            if cancel_button:
-                st.session_state.mode = 'view'
-                st.rerun()
-
-                all_cols = fetch_all_collections()
+        all_cols = fetch_all_collections()
         selected_new_col_ids = []
         if all_cols:
             selected_new_col_ids = st.multiselect(
@@ -582,9 +576,18 @@ elif st.session_state.mode == 'add':
                 options=[c['CollectionID'] for c in all_cols],
                 format_func=lambda x: next(c['CollectionName'] for c in all_cols if c['CollectionID'] == x)
             )
-        
+
+        st.markdown("<br />", unsafe_allow_html=True)
+        col_cancel, col_save = st.columns([1, 1])
+
+        with col_cancel:
+            cancel_button = st.form_submit_button(label="Anuluj (Cancel)", use_container_width=True)
+            if cancel_button:
+                st.session_state.mode = 'view'
+                st.rerun()
+
         with col_save:
-            save_button = st.form_submit_button(label="Zapisz i wyświetl (Save & Load)", use_container_width=True)
+            save_button = st.form_submit_button(label="Zapisz i wyświetl (Save &amp; Load)", use_container_width=True, type="primary")
             if save_button:
                 if not new_orig_title.strip():
                     st.error("Tytuł roboczy jest wymagany!")
