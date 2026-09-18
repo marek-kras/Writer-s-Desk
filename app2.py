@@ -578,28 +578,21 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
         col_read, col_edit = st.columns([1, 1], gap="large")
         
         # --- LEFT PANEL: READ PANEL ---
-         col_read:
+        with col_read:
             st.subheader("📖 Read Panel (Podgląd utworu)")
             
-            # Nagłówek Autora widoczny TYLKO po wciśnięciu Ctrl+P (ukryty na ekranie)
-            st.markdown('<div>AUTOR: Adam Marek</div>', unsafe_allow_html=True)
-
             title_disp = work['FinalTitle'] if work['FinalTitle'] else work['OriginalTitle']
-            st.markdown(f'<div>{title_disp}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="read-panel-title">{title_disp}</div>', unsafe_allow_html=True)
             
-            # Subtitle metadata row (Bez zmian na ekranie)
+            # Subtitle metadata row
             creation_str = f"Powstał: {work['CreationDate']}" if work['CreationDate'] else "Brak daty powstania"
-            st.markdown(f'<div>{work["Genre"]} | {creation_str} | Status: **{work["Status"]}**</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="read-panel-subtitle">{work["Genre"]} | {creation_str} | Status: **{work["Status"]}**</div>', unsafe_allow_html=True)
             
-            # Display formatted poetry or text (Bez zmian na ekranie)
+                        # Display formatted poetry or text
             text_disp = work['WorkText'] if work['WorkText'] else "*Utwór nie zawiera jeszcze tekstu.*"
-            st.markdown(f'<div>{text_disp}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="read-panel-paper">{text_disp}</div>', unsafe_allow_html=True)
 
-            # Stopka warsztatowa widoczna TYLKO po wciśnięciu Ctrl+P (ukryta na ekranie)
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            st.markdown(f'<div>Wygenerowano w Writer\'s Desk • Autor: Adam Marek • Kod utworu: <strong>{work["WorkCode"]}</strong> • Data wydruku: {today_str}</div>', unsafe_allow_html=True)
-
-            # Wyświetlanie przypisanych kolekcji (Bez zmian na ekranie)
+            # Wyświetlanie przypisanych kolekcji
             work_cols = fetch_collections_for_work(work['WorkID'])
             if work_cols:
                 st.markdown("**Kolekcje / Tomiki:**")
@@ -607,17 +600,17 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                     st.markdown(f'<span>📖 {c["CollectionName"]}</span>', unsafe_allow_html=True)
                 st.markdown("<br />", unsafe_allow_html=True)
 
-            # Display Tags and Notes (Bez zmian na ekranie)
+            # Display Tags and Notes
             if work['Tags']:
                 st.markdown("**Tagi:**")
                 tags_list = [t.strip() for t in work['Tags'].split(',') if t.strip()]
                 for tag in tags_list:
                     st.markdown(f'<span>#{tag}</span>', unsafe_allow_html=True)
                 st.markdown("<br />", unsafe_allow_html=True)
-                
+
             if work['Notes']:
                 st.info(f"**Notatki autora:**\n\n{work['Notes']}")
-                
+
             st.caption(f"ID: {work['WorkID']} | Kod: {work['WorkCode']} | Utworzono: {work['CreatedAt']} | Zmodyfikowano: {work['UpdatedAt']}")
 
         # --- RIGHT PANEL: EDIT PANEL ---
