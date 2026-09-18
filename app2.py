@@ -85,6 +85,75 @@ def init_db():
 
 # Initialize the database immediately
 init_db()
+# --- LOGIKA KOLEKCJI (COLLECTIONS LOGIC) ---
+def init_collections_db():
+    """Tworzy tabele dla kolekcji/tomików oraz powiązań z utworami."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tblCollection (
+            CollectionID INTEGER PRIMARY KEY AUTOINCREMENT,
+            CollectionName TEXT NOT NULL UNIQUE,
+            Description TEXT,
+            CreatedAt TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tblWorkCollection (
+            WorkID INTEGER,
+            CollectionID INTEGER,
+            PRIMARY KEY (WorkID, CollectionID),
+            FOREIGN KEY (WorkID) REFERENCES tblWork(WorkID) ON DELETE CASCADE,
+            FOREIGN KEY (CollectionID) REFERENCES tblCollection(CollectionID) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_collections_db()
+
+def fetch_all_collections():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tblCollection ORDER BY CollectionName ASC")
+    cols = cursor.fetchall()
+    conn.close()
+    return cols
+
+def insert_collection(name, description=""):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        cursor.execute("INSERT INTO tblCollection (CollectionName, Description, CreatedAt) VALUES (?, ?, ?)",
+                       (name.strip(), description.strip(), now))
+        conn.commit()
+        new_id = cursor.lastrowid
+    except sqlite3.IntegrityError:
+        new_id = None
+    conn.close()
+    return new_id
+
+def fetch_collections_for_work(work_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.* FROM tblCollection c
+        JOIN tblWorkCollection wc ON c.CollectionID = wc.CollectionID
+        WHERE wc.WorkID = ?
+    """, (work_id,))
+    cols = cursor.fetchall()
+    conn.close()
+    return cols
+
+def set_work_collections(work_id, collection_ids):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM tblWorkCollection WHERE WorkID = ?", (work_id,))
+    for cid in collection_ids:
+        cursor.execute("INSERT INTO tblWorkCollection (WorkID, CollectionID) VALUES (?, ?)", (work_id, cid))
+    conn.commit()
+    conn.close()
 
 # --- DATABASE CRUD OPERATIONS ---
 # Lista dostępnych gatunków (Predefined Genre Options)
@@ -110,22 +179,33 @@ def generate_work_code(genre=""):
     prefix = genre[:3].upper() if genre else "WRK"
     return f"{prefix}-{next_id:03d}"
 
-def fetch_all_works(search_query=""):
-    """Pobiera utwory przefiltrowane po Tytule roboczym, Tekście, Notatkach i Tagach."""
+def fetch_all_works(search_query="", collection_filter="Wszystkie"):
+    """Pobiera utwory przefiltrowane po wyszukiwarce oraz wybranej kolekcji."""
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    query = "SELECT DISTINCT w.* FROM tblWork w"
+    params = []
+    where_clauses = []
+
+    if collection_filter == "Bez kolekcji":
+        where_clauses.append("w.WorkID NOT IN (SELECT WorkID FROM tblWorkCollection)")
+    elif collection_filter != "Wszystkie" and isinstance(collection_filter, int):
+        query += " JOIN tblWorkCollection wc ON w.WorkID = wc.WorkID"
+        where_clauses.append("wc.CollectionID = ?")
+        params.append(collection_filter)
+
     if search_query:
-        cursor.execute(
-            """SELECT * FROM tblWork
-               WHERE OriginalTitle LIKE ?
-                  OR WorkText LIKE ?
-                  OR Notes LIKE ?
-                  OR Tags LIKE ?
-               ORDER BY WorkID DESC""",
-            (f"%{search_query}%", f"%{search_query}%", f"%{search_query}%", f"%{search_query}%")
-        )
-    else:
-        cursor.execute("SELECT * FROM tblWork ORDER BY WorkID DESC")
+        where_clauses.append("(w.OriginalTitle LIKE ? OR w.FinalTitle LIKE ? OR w.WorkText LIKE ? OR w.Notes LIKE ? OR w.Tags LIKE ?)")
+        sq = f"%{search_query}%"
+        params.extend([sq, sq, sq, sq, sq])
+
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+
+    query += " ORDER BY w.WorkID DESC"
+
+    cursor.execute(query, params)
     works = cursor.fetchall()
     conn.close()
     return works
@@ -257,6 +337,34 @@ def set_add_mode():
 # --- SIDEBAR: NAVIGATOR & SEARCH ---
 with st.sidebar:
     st.markdown('<div class="sidebar-title">✍️ Writer\'s Desk Navigator</div>', unsafe_allow_html=True)
+     # Wybór i zarządzanie Kolekcjami
+    all_collections = fetch_all_collections()
+    col_options = {"Wszystkie": "📚 Wszystkie utwory", "Bez kolekcji": "📄 Bez kolekcji"}
+    for c in all_collections:
+        col_options[c['CollectionID']] = f"📖 {c['CollectionName']}"
+
+    selected_col_key = st.selectbox(
+        "Filtruj wg kolekcji / tomiku:",
+        options=list(col_options.keys()),
+        format_func=lambda x: col_options[x]
+    )
+
+    # Szybkie dodawanie nowej kolekcji
+    with st.expander("➕ Dodaj nową kolekcję / tomik"):
+        with st.form(key="quick_add_collection_form"):
+            new_col_name = st.text_input("Nazwa kolekcji")
+            new_col_desc = st.text_input("Opis (opcjonalnie)")
+            add_col_btn = st.form_submit_button("Dodaj kolekcję", use_container_width=True)
+            if add_col_btn:
+                if new_col_name.strip():
+                    res = insert_collection(new_col_name, new_col_desc)
+                    if res:
+                        st.success(f"Dodano kolekcję: {new_col_name}")
+                        st.rerun()
+                    else:
+                        st.error("Kolekcja o tej nazwie już istnieje!")
+                else:
+                    st.error("Wpisz nazwę kolekcji!")
     
     # 1. Search Box (Equivalent to txtSearch)
     search_query = st.text_input("Wyszukaj utwór... (Search Title / Tag)", value="", placeholder="Tytuł lub tag...")
@@ -268,7 +376,9 @@ with st.sidebar:
     st.markdown("**Lista utworów / Works List**")
     
     # Fetch works based on search query
-    works_list = fetch_all_works(search_query)
+    works_list = fetch_all_works(search_query, selected_col_key)
+
+```</div>
     
     if works_list:
         for idx, work in enumerate(works_list):
@@ -324,6 +434,14 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
             
             # Display Tags and Notes
             if work['Tags']:
+                # Wyświetlanie przypisanych kolekcji
+            work_cols = fetch_collections_for_work(work['WorkID'])
+            if work_cols:
+                st.markdown("**Kolekcje / Tomiki:**")
+                for c in work_cols:
+                    st.markdown(f'<span>📖 {c["CollectionName"]}</span>', unsafe_allow_html=True)
+                st.markdown("<br />", unsafe_allow_html=True)
+
                 st.markdown("**Tagi:**")
                 tags_list = [t.strip() for t in work['Tags'].split(',') if t.strip()]
                 for tag in tags_list:
@@ -372,6 +490,19 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                 
                 edit_text = st.text_area("Tekst utworu (Work Text)", value=work['WorkText'] or "", height=250)
                 edit_notes = st.text_area("Notatki (Notes)", value=work['Notes'] or "", height=100)
+                # Przypisanie do Kolekcji
+                all_cols = fetch_all_collections()
+                selected_col_ids = []
+                if all_cols:
+                    current_work_cols = fetch_collections_for_work(work['WorkID'])
+                    current_col_ids = [c['CollectionID'] for c in current_work_cols]
+
+                    selected_col_ids = st.multiselect(
+                        "Przypisz do kolekcji / tomików:",
+                        options=[c['CollectionID'] for c in all_cols],
+                        default=current_col_ids,
+                        format_func=lambda x: next(c['CollectionName'] for c in all_cols if c['CollectionID'] == x)
+                    )
                 edit_tags = st.text_input("Tagi (rozdzielone przecinkami)", value=work['Tags'] or "")
                 
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -381,6 +512,7 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                     if not edit_orig_title.strip():
                         st.error("Tytuł roboczy jest wymagany!")
                     else:
+                        set_work_collections(work['WorkID'], selected_col_ids)
                         update_work(
                             work['WorkID'],
                             edit_orig_title.strip(),
@@ -443,7 +575,16 @@ elif st.session_state.mode == 'add':
             if cancel_button:
                 st.session_state.mode = 'view'
                 st.rerun()
-                
+
+                all_cols = fetch_all_collections()
+        selected_new_col_ids = []
+        if all_cols:
+            selected_new_col_ids = st.multiselect(
+                "Przypisz do kolekcji / tomików:",
+                options=[c['CollectionID'] for c in all_cols],
+                format_func=lambda x: next(c['CollectionName'] for c in all_cols if c['CollectionID'] == x)
+            )
+        
         with col_save:
             save_button = st.form_submit_button(label="Zapisz i wyświetl (Save & Load)", use_container_width=True)
             if save_button:
@@ -451,6 +592,7 @@ elif st.session_state.mode == 'add':
                     st.error("Tytuł roboczy jest wymagany!")
                 else:
                     new_id = insert_work(
+                        set_work_collections(new_id, selected_new_col_ids)
                         new_orig_title.strip(),
                         new_final_title.strip() if new_final_title.strip() else None,
                         new_creation_date,
