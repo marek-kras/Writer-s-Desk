@@ -377,8 +377,6 @@ with st.sidebar:
     
     # Fetch works based on search query
     works_list = fetch_all_works(search_query, selected_col_key)
-
-```</div>
     
     if works_list:
         for idx, work in enumerate(works_list):
@@ -592,7 +590,6 @@ elif st.session_state.mode == 'add':
                     st.error("Tytuł roboczy jest wymagany!")
                 else:
                     new_id = insert_work(
-                        set_work_collections(new_id, selected_new_col_ids)
                         new_orig_title.strip(),
                         new_final_title.strip() if new_final_title.strip() else None,
                         new_creation_date,
@@ -604,7 +601,9 @@ elif st.session_state.mode == 'add':
                         new_tags,
                         new_code.strip()
                     )
+                    set_work_collections(new_id, selected_new_col_ids)
                     st.session_state.selected_work_id = new_id
                     st.session_state.mode = 'view'
                     st.success("Dodano nowy utwór!")
                     st.rerun()
+
