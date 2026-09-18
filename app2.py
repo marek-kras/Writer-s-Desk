@@ -562,26 +562,41 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                 edit_notes = st.text_area("Notatki (Notes)", value=work['Notes'] or "", height=100)
                 # Przypisanie do Kolekcji
                 all_cols = fetch_all_collections()
-                selected_col_ids = []
-                if all_cols:
-                    current_work_cols = fetch_collections_for_work(work['WorkID'])
-                    current_col_ids = [c['CollectionID'] for c in current_work_cols]
+                current_work_cols = fetch_collections_for_work(work['WorkID'])
+                current_col_ids = [c['CollectionID'] for c in current_work_cols]
 
-                    selected_col_ids = st.multiselect(
-                        "Przypisz do kolekcji / tomików:",
-                        options=[c['CollectionID'] for c in all_cols],
-                        default=current_col_ids,
-                        format_func=lambda x: next(c['CollectionName'] for c in all_cols if c['CollectionID'] == x)
-                    )
+                selected_col_ids = st.multiselect(
+                    "Przypisz do kolekcji / tomików:",
+                    options=[c['CollectionID'] for c in all_cols],
+                    default=current_col_ids,
+                    format_func=lambda x: next((c['CollectionName'] for c in all_cols if c['CollectionID'] == x), str(x))
+                )
+
+                new_inline_col = st.text_input(
+                    "➕ Stwórz nową kolekcję i przypisz (opcjonalnie):",
+                    placeholder="Wpisz nazwę nowej kolekcji..."
+                )
+
                 edit_tags = st.text_input("Tagi (rozdzielone przecinkami)", value=work['Tags'] or "")
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                submit_button = st.form_submit_button(label="Zapisz zmiany (Save Changes)", use_container_width=True)
-                
+
+                st.markdown("<br />", unsafe_allow_html=True)
+
+                submit_button = st.form_submit_button(label="💾 Zapisz zmiany (Save Changes)", use_container_width=True)
+
                 if submit_button:
                     if not edit_orig_title.strip():
                         st.error("Tytuł roboczy jest wymagany!")
                     else:
+                        # Jeśli wpisano nową kolekcję w polu tekstowym, stwórz ją w bazie i dołącz do listy przypisań
+                        if new_inline_col.strip():
+                            created_cid = insert_collection(new_inline_col.strip())
+                            if created_cid and created_cid not in selected_col_ids:
+                                selected_col_ids.append(created_cid)
+                            elif created_cid is None:
+                                existing_cid = next((c['CollectionID'] for c in all_cols if c['CollectionName'].lower() == new_inline_col.strip().lower()), None)
+                                if existing_cid and existing_cid not in selected_col_ids:
+                                    selected_col_ids.append(existing_cid)
+
                         set_work_collections(work['WorkID'], selected_col_ids)
                         update_work(
                             work['WorkID'],
