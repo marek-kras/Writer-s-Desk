@@ -454,7 +454,7 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
             st.caption(f"ID: {work['WorkID']} | Kod: {work['WorkCode']} | Utworzono: {work['CreatedAt']} | Zmodyfikowano: {work['UpdatedAt']}")
 
         # --- RIGHT PANEL: EDIT PANEL ---
-        with col_edit:
+            with col_edit:
             st.subheader("✏️ Edit Panel (Edycja utworu)")
             
             # Use a form to capture all updates
