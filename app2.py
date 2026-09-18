@@ -426,13 +426,11 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
             creation_str = f"Powstał: {work['CreationDate']}" if work['CreationDate'] else "Brak daty powstania"
             st.markdown(f'<div class="read-panel-subtitle">{work["Genre"]} | {creation_str} | Status: **{work["Status"]}**</div>', unsafe_allow_html=True)
             
-            # Display formatted poetry or text
+                        # Display formatted poetry or text
             text_disp = work['WorkText'] if work['WorkText'] else "*Utwór nie zawiera jeszcze tekstu.*"
             st.markdown(f'<div class="read-panel-paper">{text_disp}</div>', unsafe_allow_html=True)
-            
-            # Display Tags and Notes
-    if work['Tags']:
-                # Wyświetlanie przypisanych kolekcji
+
+            # Wyświetlanie przypisanych kolekcji
             work_cols = fetch_collections_for_work(work['WorkID'])
             if work_cols:
                 st.markdown("**Kolekcje / Tomiki:**")
@@ -454,7 +452,7 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
             st.caption(f"ID: {work['WorkID']} | Kod: {work['WorkCode']} | Utworzono: {work['CreatedAt']} | Zmodyfikowano: {work['UpdatedAt']}")
 
         # --- RIGHT PANEL: EDIT PANEL ---
-            with col_edit:
+        with col_edit:
             st.subheader("✏️ Edit Panel (Edycja utworu)")
             
             # Use a form to capture all updates
