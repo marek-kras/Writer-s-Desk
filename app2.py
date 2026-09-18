@@ -134,6 +134,31 @@ def insert_collection(name, description=""):
     conn.close()
     return new_id
 
+def update_collection(collection_id, name, description=""):
+    """Aktualizuje nazwę i opis istniejącej kolekcji/tomiku."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE tblCollection SET CollectionName = ?, Description = ? WHERE CollectionID = ?",
+            (name.strip(), description.strip(), collection_id)
+        )
+        conn.commit()
+        success = True
+    except sqlite3.IntegrityError:
+        success = False
+    conn.close()
+    return success
+
+def delete_collection(collection_id):
+    """Usuwa kolekcję z bazy (utwory i wiersze pozostają nienaruszone)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM tblWorkCollection WHERE CollectionID = ?", (collection_id,))
+    cursor.execute("DELETE FROM tblCollection WHERE CollectionID = ?", (collection_id,))
+    conn.commit()
+    conn.close()
+
 def fetch_collections_for_work(work_id):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -350,21 +375,68 @@ with st.sidebar:
     )
 
     # Szybkie dodawanie nowej kolekcji
-    with st.expander("➕ Dodaj nową kolekcję / tomik"):
-        with st.form(key="quick_add_collection_form"):
-            new_col_name = st.text_input("Nazwa kolekcji")
-            new_col_desc = st.text_input("Opis (opcjonalnie)")
-            add_col_btn = st.form_submit_button("Dodaj kolekcję", use_container_width=True)
-            if add_col_btn:
-                if new_col_name.strip():
-                    res = insert_collection(new_col_name, new_col_desc)
-                    if res:
-                        st.success(f"Dodano kolekcję: {new_col_name}")
-                        st.rerun()
+    with st.expander("⚙️ Zarządzaj kolekcjami (Dodaj / Edytuj / Usuń)"):
+        tab_add, tab_edit, tab_del = st.tabs(["➕ Dodaj", "✏️ Edytuj", "🗑️ Usuń"])
+
+        # 1. ZAKŁADKA: DODAWANIE
+        with tab_add:
+            with st.form(key="quick_add_collection_form"):
+                new_col_name = st.text_input("Nazwa nowej kolekcji")
+                new_col_desc = st.text_input("Opis (opcjonalnie)")
+                add_col_btn = st.form_submit_button("Dodaj kolekcję", use_container_width=True)
+                if add_col_btn:
+                    if new_col_name.strip():
+                        res = insert_collection(new_col_name, new_col_desc)
+                        if res:
+                            st.success(f"Dodano kolekcję: {new_col_name}")
+                            st.rerun()
+                        else:
+                            st.error("Kolekcja o tej nazwie już istnieje!")
                     else:
-                        st.error("Kolekcja o tej nazwie już istnieje!")
-                else:
-                    st.error("Wpisz nazwę kolekcji!")
+                        st.error("Wpisz nazwę kolekcji!")
+
+        # 2. ZAKŁADKA: EDYCJA
+        with tab_edit:
+            if all_collections:
+                selected_edit_id = st.selectbox(
+                    "Wybierz kolekcję do edycji:",
+                    options=[c['CollectionID'] for c in all_collections],
+                    format_func=lambda x: next(c['CollectionName'] for c in all_collections if c['CollectionID'] == x),
+                    key="select_col_edit"
+                )
+                col_to_edit = next(c for c in all_collections if c['CollectionID'] == selected_edit_id)
+
+                with st.form(key=f"edit_col_form_{selected_edit_id}"):
+                    edit_col_name = st.text_input("Nazwa kolekcji", value=col_to_edit['CollectionName'])
+                    edit_col_desc = st.text_input("Opis kolekcji", value=col_to_edit['Description'] or "")
+                    save_col_btn = st.form_submit_button("Zapisz zmiany w kolekcji", use_container_width=True)
+                    if save_col_btn:
+                        if edit_col_name.strip():
+                            if update_collection(selected_edit_id, edit_col_name, edit_col_desc):
+                                st.success("Kolekcja została zaktualizowana!")
+                                st.rerun()
+                            else:
+                                st.error("Kolekcja o tej nazwie już istnieje!")
+                        else:
+                            st.error("Nazwa kolekcji nie może być pusta!")
+            else:
+                st.info("Brak utworzonych kolekcji.")
+
+        # 3. ZAKŁADKA: USUWANIE
+        with tab_del:
+            if all_collections:
+                col_to_del = st.selectbox(
+                    "Wybierz kolekcję do usunięcia:",
+                    options=[c['CollectionID'] for c in all_collections],
+                    format_func=lambda x: next(c['CollectionName'] for c in all_collections if c['CollectionID'] == x),
+                    key="select_col_del"
+                )
+                if st.button("🗑️ Usuń tę kolekcję", use_container_width=True):
+                    delete_collection(col_to_del)
+                    st.success("Kolekcja została usunięta!")
+                    st.rerun()
+            else:
+                st.info("Brak utworzonych kolekcji.")
     
     # 1. Search Box (Equivalent to txtSearch)
     search_query = st.text_input("Wyszukaj utwór... (Search Title / Tag)", value="", placeholder="Tytuł lub tag...")
