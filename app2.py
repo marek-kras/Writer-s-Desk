@@ -401,16 +401,16 @@ st.markdown("""
 
     /* AUTOMATIC WORKSHOP PRINT FORMATTING (Ctrl + P) */
     @media print {
-        [data-testid="stSidebar"], header, footer, .stButton, .no-print, [data-testid="stExpander"] {
+        /\* Ukrycie nawigacji, przycisków, tagów, notatek oraz prawego panelu edycji \*/
+        [data-testid="stSidebar"], header, footer, .stButton, .no-print, .stAlert, .stCaption, [data-testid="column"]:nth-child(2), .stSubheader {
             display: none !important;
         }
-        [data-testid="column"]:nth-child(2) {
-            display: none !important;
-        }
+        /\* Rozciągnięcie podglądu tekstu na pełną szerokość A4 \*/
         [data-testid="column"]:nth-child(1) {
             width: 100% !important;
             flex: 1 1 100% !important;
         }
+        /\* Usunięcie tła papieru na czas druku \*/
         .read-panel-paper {
             background-color: #FFFFFF !important;
             border: none !important;
@@ -419,8 +419,21 @@ st.markdown("""
             font-size: 1.25rem !important;
             line-height: 2 !important;
         }
-        .print-only-footer {
-            display: block !important;
+        /\* Wstrzyknięcie nagłówka Autora przed tytułem TYLKO na wydruku \*/
+        .read-panel-title::before {
+            content: "AUTOR: ADAM MAREK";
+            display: block;
+            font-size: 1.1rem;
+            font-family: 'Georgia', serif;
+            font-weight: bold;
+            color: #1F2937;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+        /\* Wstrzyknięcie stopki warsztatowej pod tekstem TYLKO na wydruku \*/
+        .read-panel-paper::after {
+            content: "Wygenerowano w Writer's Desk • Wydruk warsztatowy";
+            display: block;
             margin-top: 60px;
             border-top: 1px solid #94A3B8;
             padding-top: 12px;
