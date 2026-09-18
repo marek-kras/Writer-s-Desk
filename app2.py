@@ -578,7 +578,7 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
         col_read, col_edit = st.columns([1, 1], gap="large")
         
         # --- LEFT PANEL: READ PANEL ---
-         col_read:
+        with col_read:
             st.subheader("📖 Read Panel (Podgląd utworu)")
             
             # Nagłówek Autora widoczny TYLKO po wciśnięciu Ctrl+P (ukryty na ekranie)
