@@ -735,11 +735,24 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
 # ----------------- MODE: ADD NEW (INJECTION FORM) -----------------
 elif st.session_state.mode == 'add':
     st.subheader("➕ Inject New Work to Database (Dodaj nowy utwór)")
-    
+
     with st.form(key="add_new_work_form"):
         new_orig_title = st.text_input("Tytuł roboczy (Original Title) *", placeholder="Np. Jesienne liście")
         new_final_title = st.text_input("Tytuł ostateczny (Final Title)", placeholder="Pozostaw puste, jeśli nie znasz ostatecznego")
-        
+
+        all_authors = fetch_all_authors()
+        author_ids = [a['AuthorID'] for a in all_authors]
+
+        c_auth1, c_auth2 = st.columns(2)
+        with c_auth1:
+            new_author_id = st.selectbox(
+                "Autor (Author)",
+                options=author_ids,
+                format_func=lambda x: next(a['AuthorName'] for a in all_authors if a['AuthorID'] == x)
+            )
+        with c_auth2:
+            new_author_name_input = st.text_input("➕ Dodaj nowego autora do bazy (opcjonalnie)", key="new_author_input_add")
+
         c1, c2, c3 = st.columns(3)
         with c1:
             new_genre = st.selectbox("Gatunek (Genre)", options=GENRE_OPTIONS)
