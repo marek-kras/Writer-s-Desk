@@ -630,7 +630,7 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                         format_func=lambda x: next(a['AuthorName'] for a in all_authors if a['AuthorID'] == x)
                     )
                 with c_auth2:
-                    new_author_name = st.text_input("➕ Dodaj nowego autora do bazy (opcjonalnie)")
+                    new_author_name = st.text_input("➕ Dodaj nowego autora (opcjonalnie)")
                 
                 c1, c2, c3 = st.columns(3)
                 with c1:
