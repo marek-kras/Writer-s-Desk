@@ -574,17 +574,40 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
         # --- LEFT PANEL: READ PANEL ---
         with col_read:
             st.subheader("📖 Read Panel (Podgląd utworu)")
-            
+
+            author_name = get_author_name(work['AuthorID'] if 'AuthorID' in work.keys() and work['AuthorID'] else 1)
             title_disp = work['FinalTitle'] if work['FinalTitle'] else work['OriginalTitle']
-            st.markdown(f'<div class="read-panel-title">{title_disp}</div>', unsafe_allow_html=True)
-            
-            # Subtitle metadata row
+
+            # Nagłówek z autorem
+            st.markdown(f'<div>AUTOR: {author_name.upper()}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div>{title_disp}</div>', unsafe_allow_html=True)
+
             creation_str = f"Powstał: {work['CreationDate']}" if work['CreationDate'] else "Brak daty powstania"
-            st.markdown(f'<div class="read-panel-subtitle">{work["Genre"]} | {creation_str} | Status: **{work["Status"]}**</div>', unsafe_allow_html=True)
-            
-                        # Display formatted poetry or text
+            st.markdown(f'<div>{work["Genre"]} | {creation_str} | Status: **{work["Status"]}**</div>', unsafe_allow_html=True)
+
+            # Papierowy podgląd tekstu
             text_disp = work['WorkText'] if work['WorkText'] else "*Utwór nie zawiera jeszcze tekstu.*"
-            st.markdown(f'<div class="read-panel-paper">{text_disp}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div>{text_disp}</div>', unsafe_allow_html=True)
+
+            # Przycisk wersji na warsztaty
+            with st.expander("🖨️ Widok czystej karty na warsztaty (Do druku / PDF)"):
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                st.markdown(f"""
+                <div>
+                    <div>
+                        <h3>{author_name}</h3>
+                        <h2>{title_disp}</h2>
+                    </div>
+                    <div>
+{text_disp}
+                    </div>
+                    <div>
+                        Wygenerowano w Writer's Desk • Kod utworu: <strong>{work['WorkCode']}</strong> • Data wydruku: {today_str}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                st.caption("💡 Wskazówka: Naciśnij **Ctrl + P** w przeglądarce, aby wydrukować czystą kartę warsztatową bez bocznych paneli serwisu.")
+
 
             # Wyświetlanie przypisanych kolekcji
             work_cols = fetch_collections_for_work(work['WorkID'])
