@@ -646,7 +646,7 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                             default_date = datetime.strptime(work['CreationDate'], "%Y-%m-%d")
                         except ValueError:
                             pass
-                    edit_creation_date = st.date_input("Data powstania (Creation Date)", value=default_date).strftime("%Y-%m-%d")
+                    edit_creation_date = st.date_input("Data powstania", value=default_date).strftime("%Y-%m-%d")
                 with c3:
                     status_options = ["Draft", "In Progress", "Completed", "Submitted", "Published", "Archived"]
                     current_status_idx = status_options.index(work['Status']) if work['Status'] in status_options else 0
@@ -744,7 +744,7 @@ elif st.session_state.mode == 'add':
         with c1:
             new_genre = st.selectbox("Gatunek (Genre)", options=GENRE_OPTIONS)
         with c2:
-            new_creation_date = st.date_input("Data powstania (Creation Date)", value=datetime.today()).strftime("%Y-%m-%d")
+            new_creation_date = st.date_input("Data powstania", value=datetime.today()).strftime("%Y-%m-%d")
         with c3:
             new_status = st.selectbox("Status", options=["Draft", "In Progress", "Completed", "Submitted", "Published", "Archived"])
             
