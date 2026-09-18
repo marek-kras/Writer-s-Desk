@@ -298,32 +298,32 @@ def fetch_work_by_id(work_id):
     conn.close()
     return work
 
-def insert_work(original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code):
+def insert_work(original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code, author_id=1):
     conn = get_db_connection()
     cursor = conn.cursor()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""
         INSERT INTO tblWork (
-            OriginalTitle, FinalTitle, CreationDate, Language, Genre, Status, 
-            WorkText, Notes, Tags, WorkCode, CreatedAt, UpdatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code, now, now))
+            OriginalTitle, FinalTitle, CreationDate, Language, Genre, Status,
+            WorkText, Notes, Tags, WorkCode, AuthorID, CreatedAt, UpdatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code, author_id, now, now))
     conn.commit()
     new_id = cursor.lastrowid
     conn.close()
     return new_id
 
-def update_work(work_id, original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code):
+def update_work(work_id, original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code, author_id=1):
     conn = get_db_connection()
     cursor = conn.cursor()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""
-        UPDATE tblWork SET 
-            OriginalTitle = ?, FinalTitle = ?, CreationDate = ?, Language = ?, 
-            Genre = ?, Status = ?, WorkText = ?, Notes = ?, Tags = ?, 
-            WorkCode = ?, UpdatedAt = ?
+        UPDATE tblWork SET
+            OriginalTitle = ?, FinalTitle = ?, CreationDate = ?, Language = ?,
+            Genre = ?, Status = ?, WorkText = ?, Notes = ?, Tags = ?,
+            WorkCode = ?, AuthorID = ?, UpdatedAt = ?
         WHERE WorkID = ?
-    """, (original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code, now, work_id))
+    """, (original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code, author_id, now, work_id))
     conn.commit()
     conn.close()
 
