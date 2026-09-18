@@ -687,7 +687,7 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                     if not edit_orig_title.strip():
                         st.error("Tytuł roboczy jest wymagany!")
                     else:
-                        # Jeśli wpisano nową kolekcję w polu tekstowym, stwórz ją w bazie i dołącz do listy przypisań
+                        # 1. Obsługa nowej kolekcji (jeśli wpisano)
                         if new_inline_col.strip():
                             created_cid = insert_collection(new_inline_col.strip())
                             if created_cid and created_cid not in selected_col_ids:
@@ -697,6 +697,13 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                                 if existing_cid and existing_cid not in selected_col_ids:
                                     selected_col_ids.append(existing_cid)
 
+                        # 2. TUTAJ: Obsługa nowego autora (jeśli wpisano imię/nazwisko)
+                        if new_author_name.strip():
+                            created_aid = insert_author(new_author_name.strip())
+                            if created_aid:
+                                edit_author_id = created_aid
+
+                        # 3. Zapis kolekcji oraz aktualizacja wiersza w bazie
                         set_work_collections(work['WorkID'], selected_col_ids)
                         update_work(
                             work['WorkID'],
@@ -709,11 +716,13 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                             edit_text,
                             edit_notes,
                             edit_tags,
-                            edit_code.strip()
+                            edit_code.strip(),
+                            edit_author_id  # &lt;--- TUTAJ: dodany parametr Autora na końcu
                         )
                         st.success("Zmiany zostały pomyślnie zapisane!")
                         st.rerun()
-                                # Przycisk usuwania wewnątrz formularza
+
+                # Przycisk usuwania wewnątrz formularza
                 delete_button = st.form_submit_button(label="🗑️ Usuń utwór (Delete Work)", use_container_width=True)
 
                 if delete_button:
@@ -722,7 +731,6 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                     st.session_state.selected_work_id = None
                     st.success("Utwór został pomyślnie usunięty!")
                     st.rerun()
-
 
 # ----------------- MODE: ADD NEW (INJECTION FORM) -----------------
 elif st.session_state.mode == 'add':
