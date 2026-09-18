@@ -431,7 +431,7 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
             st.markdown(f'<div class="read-panel-paper">{text_disp}</div>', unsafe_allow_html=True)
             
             # Display Tags and Notes
-            if work['Tags']:
+    if work['Tags']:
                 # Wyświetlanie przypisanych kolekcji
             work_cols = fetch_collections_for_work(work['WorkID'])
             if work_cols:
