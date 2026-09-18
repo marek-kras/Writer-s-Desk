@@ -615,6 +615,22 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
             with st.form(key=f"edit_form_{work['WorkID']}"):
                 edit_orig_title = st.text_input("Tytuł roboczy (Original Title) *", value=work['OriginalTitle'])
                 edit_final_title = st.text_input("Tytuł ostateczny (Final Title)", value=work['FinalTitle'] or "")
+
+                all_authors = fetch_all_authors()
+                current_author_id = work['AuthorID'] if 'AuthorID' in work.keys() and work['AuthorID'] else 1
+                author_ids = [a['AuthorID'] for a in all_authors]
+                current_auth_idx = author_ids.index(current_author_id) if current_author_id in author_ids else 0
+
+                c_auth1, c_auth2 = st.columns(2)
+                with c_auth1:
+                    edit_author_id = st.selectbox(
+                        "Autor (Author)",
+                        options=author_ids,
+                        index=current_auth_idx,
+                        format_func=lambda x: next(a['AuthorName'] for a in all_authors if a['AuthorID'] == x)
+                    )
+                with c_auth2:
+                    new_author_name = st.text_input("➕ Dodaj nowego autora do bazy (opcjonalnie)")
                 
                 c1, c2, c3 = st.columns(3)
                 with c1:
