@@ -28,7 +28,7 @@ def init_db():
             WorkID INTEGER PRIMARY KEY AUTOINCREMENT,
             OriginalTitle TEXT NOT NULL,
             FinalTitle TEXT,
-            Date TEXT,
+            CreationDate TEXT,
             Language TEXT DEFAULT 'Polish',
             Genre TEXT,
             Status TEXT DEFAULT 'Draft',
@@ -36,11 +36,11 @@ def init_db():
             Notes TEXT,
             Tags TEXT,
             WorkCode TEXT,
+            AuthorID INTEGER DEFAULT 1,
             CreatedAt TEXT,
             UpdatedAt TEXT
         )
     """)
-    # Add some sample data if the table is empty so the user can see it in action
     cursor.execute("SELECT COUNT(*) FROM tblWork")
     if cursor.fetchone()[0] == 0:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -55,7 +55,8 @@ def init_db():
                 "O szyby deszcz dzwoni, deszcz dzwoni jesienny\nI pluszcze jednaki, miarowy, niezmienny,\nKiedyś o zmierzchu w szarym pokoju\nCzekałem na ciebie w cichym niepokoju...",
                 "Inspiracja klasycznym wierszem Staffa. Dopracować rytm w trzeciej strofie.",
                 "deszcz, nostalgia, jesień",
-                "POEM-001",
+                "POE-001",
+                1,
                 now,
                 now
             ),
@@ -64,12 +65,13 @@ def init_db():
                 "Katedra", 
                 "2026-08-15", 
                 "Polish", 
-                "Sci-Fi Short Story", 
+                "Short Story", 
                 "Completed",
                 "Stali przed wrotami wzniesionymi z czystego, spolaryzowanego światła. \n- Czy to tutaj? - zapytał młodszy inżynier, poprawiając gogle ochronne. \n- Tutaj - odparła, nie odrywając wzroku od mieniących się struktur.",
                 "Opowiadanie inspirowane architekturą gotycką i fizyką kwantową.",
                 "fantastyka, kosmos, architektura",
-                "SF-002",
+                "SHO-002",
+                1,
                 now,
                 now
             )
@@ -77,14 +79,14 @@ def init_db():
         cursor.executemany("""
             INSERT INTO tblWork (
                 OriginalTitle, FinalTitle, CreationDate, Language, Genre, Status, 
-                WorkText, Notes, Tags, WorkCode, CreatedAt, UpdatedAt
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                WorkText, Notes, Tags, WorkCode, AuthorID, CreatedAt, UpdatedAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, sample_works)
         conn.commit()
     conn.close()
 
-# Initialize the database immediately
 init_db()
+
 # --- LOGIKA KOLEKCJI (COLLECTIONS LOGIC) ---
 def init_collections_db():
     """Tworzy tabele dla kolekcji/tomików oraz powiązań z utworami."""
@@ -135,7 +137,6 @@ def insert_collection(name, description=""):
     return new_id
 
 def update_collection(collection_id, name, description=""):
-    """Aktualizuje nazwę i opis istniejącej kolekcji/tomiku."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -151,7 +152,6 @@ def update_collection(collection_id, name, description=""):
     return success
 
 def delete_collection(collection_id):
-    """Usuwa kolekcję z bazy (utwory i wiersze pozostają nienaruszone)."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM tblWorkCollection WHERE CollectionID = ?", (collection_id,))
@@ -193,11 +193,10 @@ def init_authors_db():
         )
     """)
     cursor.execute("SELECT COUNT(*) FROM tblAuthor")
-    if cursor.fetchone() == 0:
-        cursor.execute("INSERT INTO tblAuthor (AuthorName, IsDefault) VALUES (?, 1)", ("Autor / Operator",))
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO tblAuthor (AuthorName, IsDefault) VALUES (?, 1)", ("Adam Marek",))
         conn.commit()
-
-    # Dodanie kolumny AuthorID do tblWork (jeśli jeszcze nie istnieje)
+    
     try:
         cursor.execute("ALTER TABLE tblWork ADD COLUMN AuthorID INTEGER DEFAULT 1")
         conn.commit()
@@ -235,7 +234,6 @@ def get_author_name(author_id):
     conn.close()
     return row['AuthorName'] if row else "Autor nieznany"
 
-# --- DATABASE CRUD OPERATIONS ---
 # Lista dostępnych gatunków (Predefined Genre Options)
 GENRE_OPTIONS = [
     "Poetry",
@@ -248,43 +246,44 @@ GENRE_OPTIONS = [
 ]
 
 def generate_work_code(genre=""):
-    """Generuje automatyczny kod utworu na podstawie gatunku i ID."""
+    """Generuje automatyczny kod utworu na podstawie gatunku i kolejnego ID."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT MAX(WorkID) FROM tblWork")
     row = cursor.fetchone()
-    next_id = (row[0] or 0) + 1
+    next_id = (row[0] + 1) if row and row[0] is not None else 1
     conn.close()
-
+    
     prefix = genre[:3].upper() if genre else "WRK"
     return f"{prefix}-{next_id:03d}"
 
+# --- DATABASE CRUD OPERATIONS ---
 def fetch_all_works(search_query="", collection_filter="Wszystkie"):
     """Pobiera utwory przefiltrowane po wyszukiwarce oraz wybranej kolekcji."""
     conn = get_db_connection()
     cursor = conn.cursor()
-
+    
     query = "SELECT DISTINCT w.* FROM tblWork w"
     params = []
     where_clauses = []
-
+    
     if collection_filter == "Bez kolekcji":
         where_clauses.append("w.WorkID NOT IN (SELECT WorkID FROM tblWorkCollection)")
     elif collection_filter != "Wszystkie" and isinstance(collection_filter, int):
         query += " JOIN tblWorkCollection wc ON w.WorkID = wc.WorkID"
         where_clauses.append("wc.CollectionID = ?")
         params.append(collection_filter)
-
+        
     if search_query:
         where_clauses.append("(w.OriginalTitle LIKE ? OR w.FinalTitle LIKE ? OR w.WorkText LIKE ? OR w.Notes LIKE ? OR w.Tags LIKE ?)")
         sq = f"%{search_query}%"
         params.extend([sq, sq, sq, sq, sq])
-
+        
     if where_clauses:
         query += " WHERE " + " AND ".join(where_clauses)
-
+        
     query += " ORDER BY w.WorkID DESC"
-
+    
     cursor.execute(query, params)
     works = cursor.fetchall()
     conn.close()
@@ -304,7 +303,7 @@ def insert_work(original_title, final_title, creation_date, language, genre, sta
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""
         INSERT INTO tblWork (
-            OriginalTitle, FinalTitle, CreationDate, Language, Genre, Status,
+            OriginalTitle, FinalTitle, CreationDate, Language, Genre, Status, 
             WorkText, Notes, Tags, WorkCode, AuthorID, CreatedAt, UpdatedAt
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code, author_id, now, now))
@@ -318,9 +317,9 @@ def update_work(work_id, original_title, final_title, creation_date, language, g
     cursor = conn.cursor()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""
-        UPDATE tblWork SET
-            OriginalTitle = ?, FinalTitle = ?, CreationDate = ?, Language = ?,
-            Genre = ?, Status = ?, WorkText = ?, Notes = ?, Tags = ?,
+        UPDATE tblWork SET 
+            OriginalTitle = ?, FinalTitle = ?, CreationDate = ?, Language = ?, 
+            Genre = ?, Status = ?, WorkText = ?, Notes = ?, Tags = ?, 
             WorkCode = ?, AuthorID = ?, UpdatedAt = ?
         WHERE WorkID = ?
     """, (original_title, final_title, creation_date, language, genre, status, work_text, notes, tags, work_code, author_id, now, work_id))
@@ -328,103 +327,17 @@ def update_work(work_id, original_title, final_title, creation_date, language, g
     conn.close()
 
 def delete_work(work_id):
+    """Usuwa utwór z bazy danych SQLite."""
     conn = get_db_connection()
     cursor = conn.cursor()
+    cursor.execute("DELETE FROM tblWorkCollection WHERE WorkID = ?", (work_id,))
     cursor.execute("DELETE FROM tblWork WHERE WorkID = ?", (work_id,))
     conn.commit()
     conn.close()
 
 # --- CUSTOM CSS STYLING ---
 st.markdown("""
-<style>
-    /* Styling for the Writer's Desk App */
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    .writer-header {
-        font-family: 'Georgia', serif;
-        font-weight: 700;
-        color: #2E4057;
-        border-bottom: 2px solid #D1D5DB;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-    }
-    .read-panel-title {
-        font-family: 'Georgia', serif;
-        color: #1F2937;
-        font-size: 1.8rem;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    .read-panel-subtitle {
-        font-family: 'Helvetica Neue', Arial, sans-serif;
-        color: #6B7280;
-        font-size: 0.95rem;
-        margin-bottom: 20px;
-    }
-    .read-panel-paper {
-        background-color: #FCFBF7;
-        border: 1px solid #E5E7EB;
-        border-radius: 8px;
-        padding: 30px;
-        font-family: 'Georgia', serif;
-        font-size: 1.15rem;
-        line-height: 1.8;
-        color: #2D3748;
-        white-space: pre-wrap; /* Keeps line breaks */
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        min-height: 400px;
-        margin-bottom: 15px;
-    }
-    .meta-tag {
-        background-color: #E0F2FE;
-        color: #0369A1;
-        padding: 3px 10px;
-        border-radius: 15px;
-        font-size: 0.85rem;
-        font-weight: bold;
-        display: inline-block;
-        margin-right: 5px;
-        margin-bottom: 5px;
-    }
-    .sidebar-title {
-        font-family: 'Georgia', serif;
-        font-weight: bold;
-        font-size: 1.3rem;
-        color: #1F2937;
-        margin-bottom: 15px;
-    }
-    /* Stylizacja wydruku warsztatowego (Ctrl + P) */
-    @media print {
-        [data-testid="stSidebar"], header, footer, .stButton, .no-print {
-            display: none !important;
-        }
-        .main .block-container {
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-        .workshop-print-page {
-            font-family: 'Georgia', serif;
-            color: #000000;
-            padding: 40px;
-        }
-        .workshop-header {
-            text-align: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 15px;
-            margin-bottom: 30px;
-        }
-        .workshop-footer {
-            margin-top: 50px;
-            border-top: 1px solid #ccc;
-            padding-top: 10px;
-            font-size: 0.85rem;
-            text-align: center;
-            color: #555;
-        }
-    }
-</style>
+
 """, unsafe_allow_html=True)
 
 # --- SESSION STATE MANAGEMENT ---
@@ -443,26 +356,26 @@ def set_add_mode():
     st.session_state.mode = 'add'
     st.session_state.selected_work_id = None
 
-# --- SIDEBAR: NAVIGATOR & SEARCH ---
+# --- SIDEBAR: NAVIGATOR &amp; SEARCH ---
 with st.sidebar:
-    st.markdown('<div class="sidebar-title">✍️ Writer\'s Desk Navigator</div>', unsafe_allow_html=True)
-     # Wybór i zarządzanie Kolekcjami
+    st.markdown('<div>✍️ Writer\'s Desk Navigator</div>', unsafe_allow_html=True)
+    
+    # 1. Wybór i zarządzanie Kolekcjami
     all_collections = fetch_all_collections()
     col_options = {"Wszystkie": "📚 Wszystkie utwory", "Bez kolekcji": "📄 Bez kolekcji"}
     for c in all_collections:
         col_options[c['CollectionID']] = f"📖 {c['CollectionName']}"
-
+        
     selected_col_key = st.selectbox(
         "Filtruj wg kolekcji / tomiku:",
         options=list(col_options.keys()),
         format_func=lambda x: col_options[x]
     )
-
-    # Szybkie dodawanie nowej kolekcji
+    
+    # Zarządzanie Kolekcjami (Dodawanie / Edycja / Usuwanie)
     with st.expander("⚙️ Zarządzaj kolekcjami (Dodaj / Edytuj / Usuń)"):
         tab_add, tab_edit, tab_del = st.tabs(["➕ Dodaj", "✏️ Edytuj", "🗑️ Usuń"])
-
-        # 1. ZAKŁADKA: DODAWANIE
+        
         with tab_add:
             with st.form(key="quick_add_collection_form"):
                 new_col_name = st.text_input("Nazwa nowej kolekcji")
@@ -478,8 +391,7 @@ with st.sidebar:
                             st.error("Kolekcja o tej nazwie już istnieje!")
                     else:
                         st.error("Wpisz nazwę kolekcji!")
-
-        # 2. ZAKŁADKA: EDYCJA
+                        
         with tab_edit:
             if all_collections:
                 selected_edit_id = st.selectbox(
@@ -489,7 +401,7 @@ with st.sidebar:
                     key="select_col_edit"
                 )
                 col_to_edit = next(c for c in all_collections if c['CollectionID'] == selected_edit_id)
-
+                
                 with st.form(key=f"edit_col_form_{selected_edit_id}"):
                     edit_col_name = st.text_input("Nazwa kolekcji", value=col_to_edit['CollectionName'])
                     edit_col_desc = st.text_input("Opis kolekcji", value=col_to_edit['Description'] or "")
@@ -506,7 +418,6 @@ with st.sidebar:
             else:
                 st.info("Brak utworzonych kolekcji.")
 
-        # 3. ZAKŁADKA: USUWANIE
         with tab_del:
             if all_collections:
                 col_to_del = st.selectbox(
@@ -521,9 +432,11 @@ with st.sidebar:
                     st.rerun()
             else:
                 st.info("Brak utworzonych kolekcji.")
+
+    st.markdown("---")
     
-    # 1. Search Box (Equivalent to txtSearch)
-    search_query = st.text_input("Wyszukaj utwór... (Search Title / Tag)", value="", placeholder="Tytuł lub tag...")
+    # 2. Search Box (Equivalent to txtSearch)
+    search_query = st.text_input("Wyszukaj utwór... (Search Title / Text / Tag)", value="", placeholder="Tytuł, treść, notatki...")
     
     # "Add New" Button
     st.button("➕ Nowy utwór (Add New)", on_click=set_add_mode, use_container_width=True, type="primary")
@@ -531,7 +444,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**Lista utworów / Works List**")
     
-    # Fetch works based on search query
+    # Fetch works based on search query and collection filter
     works_list = fetch_all_works(search_query, selected_col_key)
     
     if works_list:
@@ -545,7 +458,7 @@ with st.sidebar:
             is_selected = (st.session_state.selected_work_id == work_id)
             btn_label = f"📖 {title} ({genre})" if is_selected else f"{title} ({genre})"
             
-            # Clicking a work select it
+            # Clicking a work selects it
             st.button(
                 btn_label, 
                 key=f"sidebar_btn_{work_id}_{idx}", 
@@ -561,7 +474,7 @@ if st.session_state.selected_work_id is None and st.session_state.mode == 'view'
     st.session_state.selected_work_id = works_list[0]['WorkID']
 
 # --- MAIN WORKSPACE ---
-st.markdown('<h1 class="writer-header">Writer’s Desk &mdash; Open-Source Edition</h1>', unsafe_allow_html=True)
+st.markdown('<h1>Writer’s Desk — Open-Source Edition</h1>', unsafe_allow_html=True)
 
 # ----------------- MODE: VIEW / EDIT (DUAL PANELS) -----------------
 if st.session_state.mode == 'view' and st.session_state.selected_work_id is not None:
@@ -575,18 +488,22 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
         with col_read:
             st.subheader("📖 Read Panel (Podgląd utworu)")
             
+            author_name = get_author_name(work['AuthorID'] if 'AuthorID' in work.keys() and work['AuthorID'] else 1)
             title_disp = work['FinalTitle'] if work['FinalTitle'] else work['OriginalTitle']
-            st.markdown(f'<div class="read-panel-title">{title_disp}</div>', unsafe_allow_html=True)
-            
-            # Subtitle metadata row
             creation_str = f"Powstał: {work['CreationDate']}" if work['CreationDate'] else "Brak daty powstania"
-            st.markdown(f'<div class="read-panel-subtitle">{work["Genre"]} | {creation_str} | Status: **{work["Status"]}**</div>', unsafe_allow_html=True)
             
-                        # Display formatted poetry or text
+            st.markdown(f'<div>{title_disp}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div>Autor: <strong>{author_name}</strong> | {work["Genre"]} | {creation_str} | Status: **{work["Status"]}**</div>', unsafe_allow_html=True)
+            
+            # Display formatted poetry or text
             text_disp = work['WorkText'] if work['WorkText'] else "*Utwór nie zawiera jeszcze tekstu.*"
-            st.markdown(f'<div class="read-panel-paper">{text_disp}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div>{text_disp}</div>', unsafe_allow_html=True)
+            
+            # Hidden print footer (only visible on Ctrl+P)
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            st.markdown(f'<div>Wygenerowano w Writer\'s Desk • Autor: {author_name} • Kod utworu: <strong>{work["WorkCode"]}</strong> • Data: {today_str}</div>', unsafe_allow_html=True)
 
-            # Wyświetlanie przypisanych kolekcji
+            # Display Collections
             work_cols = fetch_collections_for_work(work['WorkID'])
             if work_cols:
                 st.markdown("**Kolekcje / Tomiki:**")
@@ -601,10 +518,10 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                 for tag in tags_list:
                     st.markdown(f'<span>#{tag}</span>', unsafe_allow_html=True)
                 st.markdown("<br />", unsafe_allow_html=True)
-
+                
             if work['Notes']:
                 st.info(f"**Notatki autora:**\n\n{work['Notes']}")
-
+                
             st.caption(f"ID: {work['WorkID']} | Kod: {work['WorkCode']} | Utworzono: {work['CreatedAt']} | Zmodyfikowano: {work['UpdatedAt']}")
 
         # --- RIGHT PANEL: EDIT PANEL ---
@@ -615,38 +532,37 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
             with st.form(key=f"edit_form_{work['WorkID']}"):
                 edit_orig_title = st.text_input("Tytuł roboczy (Original Title) *", value=work['OriginalTitle'])
                 edit_final_title = st.text_input("Tytuł ostateczny (Final Title)", value=work['FinalTitle'] or "")
-
+                
+                # Wybór / Dopisywanie Autora
                 all_authors = fetch_all_authors()
                 current_author_id = work['AuthorID'] if 'AuthorID' in work.keys() and work['AuthorID'] else 1
                 author_ids = [a['AuthorID'] for a in all_authors]
                 current_auth_idx = author_ids.index(current_author_id) if current_author_id in author_ids else 0
-
+                
                 c_auth1, c_auth2 = st.columns(2)
                 with c_auth1:
                     edit_author_id = st.selectbox(
-                        "Autor (Author)",
-                        options=author_ids,
+                        "Autor (Author)", 
+                        options=author_ids, 
                         index=current_auth_idx,
                         format_func=lambda x: next(a['AuthorName'] for a in all_authors if a['AuthorID'] == x)
                     )
                 with c_auth2:
                     new_author_name = st.text_input("➕ Dodaj nowego autora (opcjonalnie)")
-                
+
                 c1, c2, c3 = st.columns(3)
                 with c1:
-                    # Wybór gatunku z rozwijanej listy (Dropdown)
                     current_genre = work['Genre'] if work['Genre'] in GENRE_OPTIONS else GENRE_OPTIONS[0]
                     genre_idx = GENRE_OPTIONS.index(current_genre) if current_genre in GENRE_OPTIONS else 0
                     edit_genre = st.selectbox("Gatunek (Genre)", options=GENRE_OPTIONS, index=genre_idx)
                 with c2:
-                    # Date picking - handle potential string errors gracefully
                     default_date = datetime.today()
                     if work['CreationDate']:
                         try:
                             default_date = datetime.strptime(work['CreationDate'], "%Y-%m-%d")
                         except ValueError:
                             pass
-                    edit_creation_date = st.date_input("Data powstania", value=default_date).strftime("%Y-%m-%d")
+                    edit_creation_date = st.date_input("Data powstania (Creation Date)", value=default_date).strftime("%Y-%m-%d")
                 with c3:
                     status_options = ["Draft", "In Progress", "Completed", "Submitted", "Published", "Archived"]
                     current_status_idx = status_options.index(work['Status']) if work['Status'] in status_options else 0
@@ -660,34 +576,39 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                 
                 edit_text = st.text_area("Tekst utworu (Work Text)", value=work['WorkText'] or "", height=250)
                 edit_notes = st.text_area("Notatki (Notes)", value=work['Notes'] or "", height=100)
-                # Przypisanie do Kolekcji
+                
+                # --- PRZYPISANIE DO KOLEKCJI ---
                 all_cols = fetch_all_collections()
                 current_work_cols = fetch_collections_for_work(work['WorkID'])
                 current_col_ids = [c['CollectionID'] for c in current_work_cols]
-
+                
                 selected_col_ids = st.multiselect(
                     "Przypisz do kolekcji / tomików:",
                     options=[c['CollectionID'] for c in all_cols],
                     default=current_col_ids,
                     format_func=lambda x: next((c['CollectionName'] for c in all_cols if c['CollectionID'] == x), str(x))
                 )
-
+                
                 new_inline_col = st.text_input(
-                    "➕ Stwórz nową kolekcję i przypisz (opcjonalnie):",
+                    "➕ Stwórz nową kolekcję i przypisz od razu (opcjonalnie):", 
                     placeholder="Wpisz nazwę nowej kolekcji..."
                 )
 
                 edit_tags = st.text_input("Tagi (rozdzielone przecinkami)", value=work['Tags'] or "")
 
                 st.markdown("<br />", unsafe_allow_html=True)
-
-                submit_button = st.form_submit_button(label="💾 Zapisz zmiany (Save Changes)", use_container_width=True)
-
+                
+                col_save_btn, col_del_btn = st.columns([1, 1])
+                with col_save_btn:
+                    submit_button = st.form_submit_button(label="💾 Zapisz zmiany (Save Changes)", use_container_width=True, type="primary")
+                with col_del_btn:
+                    delete_button = st.form_submit_button(label="🗑️ Usuń utwór (Delete Work)", use_container_width=True)
+                
                 if submit_button:
                     if not edit_orig_title.strip():
                         st.error("Tytuł roboczy jest wymagany!")
                     else:
-                        # 1. Obsługa nowej kolekcji (jeśli wpisano)
+                        # 1. Nowa kolekcja
                         if new_inline_col.strip():
                             created_cid = insert_collection(new_inline_col.strip())
                             if created_cid and created_cid not in selected_col_ids:
@@ -697,13 +618,12 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                                 if existing_cid and existing_cid not in selected_col_ids:
                                     selected_col_ids.append(existing_cid)
 
-                        # 2. TUTAJ: Obsługa nowego autora (jeśli wpisano imię/nazwisko)
+                        # 2. Nowy autor
                         if new_author_name.strip():
                             created_aid = insert_author(new_author_name.strip())
                             if created_aid:
                                 edit_author_id = created_aid
 
-                        # 3. Zapis kolekcji oraz aktualizacja wiersza w bazie
                         set_work_collections(work['WorkID'], selected_col_ids)
                         update_work(
                             work['WorkID'],
@@ -717,17 +637,13 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                             edit_notes,
                             edit_tags,
                             edit_code.strip(),
-                            edit_author_id  # &lt;--- TUTAJ: dodany parametr Autora na końcu
+                            edit_author_id
                         )
                         st.success("Zmiany zostały pomyślnie zapisane!")
                         st.rerun()
-
-                # Przycisk usuwania wewnątrz formularza
-                delete_button = st.form_submit_button(label="🗑️ Usuń utwór (Delete Work)", use_container_width=True)
-
+                
                 if delete_button:
                     delete_work(work['WorkID'])
-                    # Resetujemy wybór utworu, aby aplikacja nie szukała usuniętego rekordu
                     st.session_state.selected_work_id = None
                     st.success("Utwór został pomyślnie usunięty!")
                     st.rerun()
@@ -735,19 +651,20 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
 # ----------------- MODE: ADD NEW (INJECTION FORM) -----------------
 elif st.session_state.mode == 'add':
     st.subheader("➕ Inject New Work to Database (Dodaj nowy utwór)")
-
+    
     with st.form(key="add_new_work_form"):
         new_orig_title = st.text_input("Tytuł roboczy (Original Title) *", placeholder="Np. Jesienne liście")
         new_final_title = st.text_input("Tytuł ostateczny (Final Title)", placeholder="Pozostaw puste, jeśli nie znasz ostatecznego")
-
+        
+        # Wybór / Dodawanie Autora dla nowego utworu
         all_authors = fetch_all_authors()
         author_ids = [a['AuthorID'] for a in all_authors]
-
+        
         c_auth1, c_auth2 = st.columns(2)
         with c_auth1:
             new_author_id = st.selectbox(
-                "Autor (Author)",
-                options=author_ids,
+                "Autor (Author)", 
+                options=author_ids, 
                 format_func=lambda x: next(a['AuthorName'] for a in all_authors if a['AuthorID'] == x)
             )
         with c_auth2:
@@ -757,7 +674,7 @@ elif st.session_state.mode == 'add':
         with c1:
             new_genre = st.selectbox("Gatunek (Genre)", options=GENRE_OPTIONS)
         with c2:
-            new_creation_date = st.date_input("Data powstania", value=datetime.today()).strftime("%Y-%m-%d")
+            new_creation_date = st.date_input("Data powstania (Creation Date)", value=datetime.today()).strftime("%Y-%m-%d")
         with c3:
             new_status = st.selectbox("Status", options=["Draft", "In Progress", "Completed", "Submitted", "Published", "Archived"])
             
@@ -765,16 +682,12 @@ elif st.session_state.mode == 'add':
         with c4:
             new_language = st.text_input("Język oryginału (Language)", value="Polish")
         with c5:
-            # Automatycznie generowany Kod Utworu
             autogen_code = generate_work_code(new_genre)
             new_code = st.text_input("Kod utworu (Work Code - wygenerowany)", value=autogen_code, disabled=True)
             
         new_text = st.text_area("Tekst utworu (Work Text)", placeholder="Wpisz lub wklej swój tekst tutaj...", height=300)
         new_notes = st.text_area("Notatki (Notes)", placeholder="Notatki o inspiracji, poprawkach, strukturze...", height=100)
         new_tags = st.text_input("Tagi / Słowa kluczowe (rozdzielone przecinkami)", placeholder="Np. wiatr, las, wieczór")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_cancel, col_save = st.columns([1, 1])
         
         all_cols = fetch_all_collections()
         selected_new_col_ids = []
@@ -787,13 +700,13 @@ elif st.session_state.mode == 'add':
 
         st.markdown("<br />", unsafe_allow_html=True)
         col_cancel, col_save = st.columns([1, 1])
-
+        
         with col_cancel:
             cancel_button = st.form_submit_button(label="Anuluj (Cancel)", use_container_width=True)
             if cancel_button:
                 st.session_state.mode = 'view'
                 st.rerun()
-
+                
         with col_save:
             save_button = st.form_submit_button(label="Zapisz i wyświetl (Save &amp; Load)", use_container_width=True, type="primary")
             if save_button:
@@ -816,9 +729,12 @@ elif st.session_state.mode == 'add':
                         new_notes,
                         new_tags,
                         new_code.strip(),
-                        new_author_id  # &lt;--- Dodany parametr Autora na końcu
+                        new_author_id
                     )
+                    set_work_collections(new_id, selected_new_col_ids)
                     st.session_state.selected_work_id = new_id
                     st.session_state.mode = 'view'
                     st.success("Dodano nowy utwór!")
                     st.rerun()
+
+```
