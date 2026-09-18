@@ -399,41 +399,61 @@ st.markdown("""
         display: none;
     }
 
-    /* AUTOMATIC WORKSHOP PRINT FORMATTING (Ctrl + P) */
+    /* AUTOMATYCZNE FORMATOWANIE WYDRUKU WARSZTATOWEGO (Ctrl + P) */
     @media print {
-        /\* Ukrycie nawigacji, przycisków, tagów, notatek oraz prawego panelu edycji \*/
-        [data-testid="stSidebar"], header, footer, .stButton, .no-print, .stAlert, .stCaption, [data-testid="column"]:nth-child(2), .stSubheader {
+        /* 1. Odblokowanie sztywnych ramek Streamlita na czas drukowania */
+        html, body, .stApp, [data-testid="stAppViewContainer"], .main, [data-testid="stMain"], .block-container {
+            height: auto !important;
+            overflow: visible !important;
+            position: static !important;
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        /* 2. Ukrycie nawigacji, nagłówka strony, przycisków, notatek i tagów */
+        [data-testid="stSidebar"], 
+        [data-testid="stHeader"], 
+        header, 
+        footer, 
+        .stButton, 
+        .stAlert, 
+        .stCaption, 
+        .meta-tag,
+        .writer-header,
+        .stSubheader {
             display: none !important;
         }
-        /\* Rozciągnięcie podglądu tekstu na pełną szerokość A4 \*/
-        [data-testid="column"]:nth-child(1) {
-            width: 100% !important;
-            flex: 1 1 100% !important;
+
+        /* 3. Ukrycie prawego panelu edycji (kolumna 2) */
+        [data-testid="column"]:nth-of-type(2), 
+        [data-testid="stColumn"]:nth-of-type(2) {
+            display: none !important;
         }
-        /\* Usunięcie tła papieru na czas druku \*/
+
+        /* 4. Rozciągnięcie podglądu utworu (kolumna 1) na pełne A4 */
+        [data-testid="column"]:nth-of-type(1), 
+        [data-testid="stColumn"]:nth-of-type(1) {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 1 1 100% !important;
+            display: block !important;
+        }
+
+        /* 5. Czysta kartka papieru (bez obramowań i cieni na wydruku) */
         .read-panel-paper {
-            background-color: #FFFFFF !important;
+            background-color: #ffffff !important;
             border: none !important;
             box-shadow: none !important;
             padding: 0 !important;
             font-size: 1.25rem !important;
             line-height: 2 !important;
+            color: #000000 !important;
         }
-        /\* Wstrzyknięcie nagłówka Autora przed tytułem TYLKO na wydruku \*/
-        .read-panel-title::before {
-            content: "AUTOR: ADAM MAREK";
-            display: block;
-            font-size: 1.1rem;
-            font-family: 'Georgia', serif;
-            font-weight: bold;
-            color: #1F2937;
-            margin-bottom: 15px;
-            letter-spacing: 1px;
-        }
-        /\* Wstrzyknięcie stopki warsztatowej pod tekstem TYLKO na wydruku \*/
-        .read-panel-paper::after {
-            content: "Wygenerowano w Writer's Desk • Wydruk warsztatowy";
-            display: block;
+
+        /* 6. Dyskretny zapis stopki drukowanej na samym dole */
+        .print-only-footer {
+            display: block !important;
             margin-top: 60px;
             border-top: 1px solid #94A3B8;
             padding-top: 12px;
