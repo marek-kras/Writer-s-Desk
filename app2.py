@@ -736,5 +736,3 @@ elif st.session_state.mode == 'add':
                     st.session_state.mode = 'view'
                     st.success("Dodano nowy utwór!")
                     st.rerun()
-
-```
