@@ -346,7 +346,10 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                 
                 c1, c2, c3 = st.columns(3)
                 with c1:
-                    edit_genre = st.text_input("Gatunek (Genre)", value=work['Genre'] or "")
+                    # Wybór gatunku z rozwijanej listy (Dropdown)
+                    current_genre = work['Genre'] if work['Genre'] in GENRE_OPTIONS else GENRE_OPTIONS[0]
+                    genre_idx = GENRE_OPTIONS.index(current_genre) if current_genre in GENRE_OPTIONS else 0
+                    edit_genre = st.selectbox("Gatunek (Genre)", options=GENRE_OPTIONS, index=genre_idx)
                 with c2:
                     # Date picking - handle potential string errors gracefully
                     default_date = datetime.today()
@@ -414,7 +417,7 @@ elif st.session_state.mode == 'add':
         
         c1, c2, c3 = st.columns(3)
         with c1:
-            new_genre = st.text_input("Gatunek (Genre)", placeholder="Np. Poetry, Short Story")
+            new_genre = st.selectbox("Gatunek (Genre)", options=GENRE_OPTIONS)
         with c2:
             new_creation_date = st.date_input("Data powstania (Creation Date)", value=datetime.today()).strftime("%Y-%m-%d")
         with c3:
@@ -424,7 +427,9 @@ elif st.session_state.mode == 'add':
         with c4:
             new_language = st.text_input("Język oryginału (Language)", value="Polish")
         with c5:
-            new_code = st.text_input("Kod utworu (Work Code)", placeholder="Np. POEM-003")
+            # Automatycznie generowany Kod Utworu
+            autogen_code = generate_work_code(new_genre)
+            new_code = st.text_input("Kod utworu (Work Code - wygenerowany)", value=autogen_code, disabled=True)
             
         new_text = st.text_area("Tekst utworu (Work Text)", placeholder="Wpisz lub wklej swój tekst tutaj...", height=300)
         new_notes = st.text_area("Notatki (Notes)", placeholder="Notatki o inspiracji, poprawkach, strukturze...", height=100)
