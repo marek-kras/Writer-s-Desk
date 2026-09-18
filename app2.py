@@ -395,33 +395,39 @@ st.markdown("""
         color: #1F2937;
         margin-bottom: 15px;
     }
-    /* Stylizacja wydruku warsztatowego (Ctrl + P) */
+    .print-only-footer {
+        display: none;
+    }
+
+    /* AUTOMATIC WORKSHOP PRINT FORMATTING (Ctrl + P) */
     @media print {
-        [data-testid="stSidebar"], header, footer, .stButton, .no-print {
+        [data-testid="stSidebar"], header, footer, .stButton, .no-print, [data-testid="stExpander"] {
             display: none !important;
         }
-        .main .block-container {
+        [data-testid="column"]:nth-child(2) {
+            display: none !important;
+        }
+        [data-testid="column"]:nth-child(1) {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+        }
+        .read-panel-paper {
+            background-color: #FFFFFF !important;
+            border: none !important;
+            box-shadow: none !important;
             padding: 0 !important;
-            margin: 0 !important;
+            font-size: 1.25rem !important;
+            line-height: 2 !important;
         }
-        .workshop-print-page {
-            font-family: 'Georgia', serif;
-            color: #000000;
-            padding: 40px;
-        }
-        .workshop-header {
-            text-align: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 15px;
-            margin-bottom: 30px;
-        }
-        .workshop-footer {
-            margin-top: 50px;
-            border-top: 1px solid #ccc;
-            padding-top: 10px;
+        .print-only-footer {
+            display: block !important;
+            margin-top: 60px;
+            border-top: 1px solid #94A3B8;
+            padding-top: 12px;
             font-size: 0.85rem;
+            color: #64748B;
             text-align: center;
-            color: #555;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
         }
     }
 </style>
