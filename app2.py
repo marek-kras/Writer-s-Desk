@@ -28,7 +28,7 @@ def init_db():
             WorkID INTEGER PRIMARY KEY AUTOINCREMENT,
             OriginalTitle TEXT NOT NULL,
             FinalTitle TEXT,
-            CreationDate TEXT,
+            Date TEXT,
             Language TEXT DEFAULT 'Polish',
             Genre TEXT,
             Status TEXT DEFAULT 'Draft',
