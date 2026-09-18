@@ -87,13 +87,42 @@ def init_db():
 init_db()
 
 # --- DATABASE CRUD OPERATIONS ---
+# Lista dostępnych gatunków (Predefined Genre Options)
+GENRE_OPTIONS = [
+    "Poetry",
+    "Short Story",
+    "Novel",
+    "Essay",
+    "Drama",
+    "Article",
+    "Other"
+]
+
+def generate_work_code(genre=""):
+    """Generuje automatyczny kod utworu na podstawie gatunku i ID."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT MAX(WorkID) FROM tblWork")
+    row = cursor.fetchone()
+    next_id = (row[0] or 0) + 1
+    conn.close()
+
+    prefix = genre[:3].upper() if genre else "WRK"
+    return f"{prefix}-{next_id:03d}"
+
 def fetch_all_works(search_query=""):
+    """Pobiera utwory przefiltrowane po Tytule roboczym, Tekście, Notatkach i Tagach."""
     conn = get_db_connection()
     cursor = conn.cursor()
     if search_query:
         cursor.execute(
-            "SELECT * FROM tblWork WHERE OriginalTitle LIKE ? OR FinalTitle LIKE ? OR Tags LIKE ? ORDER BY WorkID DESC",
-            (f"%{search_query}%", f"%{search_query}%", f"%{search_query}%")
+            """SELECT * FROM tblWork
+               WHERE OriginalTitle LIKE ?
+                  OR WorkText LIKE ?
+                  OR Notes LIKE ?
+                  OR Tags LIKE ?
+               ORDER BY WorkID DESC""",
+            (f"%{search_query}%", f"%{search_query}%", f"%{search_query}%", f"%{search_query}%")
         )
     else:
         cursor.execute("SELECT * FROM tblWork ORDER BY WorkID DESC")
