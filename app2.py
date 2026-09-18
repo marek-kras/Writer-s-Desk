@@ -440,16 +440,18 @@ if st.session_state.mode == 'view' and st.session_state.selected_work_id is not 
                     st.markdown(f'<span>📖 {c["CollectionName"]}</span>', unsafe_allow_html=True)
                 st.markdown("<br />", unsafe_allow_html=True)
 
+            # Display Tags and Notes
+            if work['Tags']:
                 st.markdown("**Tagi:**")
                 tags_list = [t.strip() for t in work['Tags'].split(',') if t.strip()]
                 for tag in tags_list:
-                    st.markdown(f'<span class="meta-tag">#{tag}</span>', unsafe_allow_html=True)
-                st.markdown("<br>", unsafe_allow_html=True)
-                
+                    st.markdown(f'<span>#{tag}</span>', unsafe_allow_html=True)
+                st.markdown("<br />", unsafe_allow_html=True)
+
             if work['Notes']:
                 st.info(f"**Notatki autora:**\n\n{work['Notes']}")
-                
-            st.caption(f"ID: {work['WorkID']} | Utworzono: {work['CreatedAt']} | Zmodyfikowano: {work['UpdatedAt']}")
+
+            st.caption(f"ID: {work['WorkID']} | Kod: {work['WorkCode']} | Utworzono: {work['CreatedAt']} | Zmodyfikowano: {work['UpdatedAt']}")
 
         # --- RIGHT PANEL: EDIT PANEL ---
         with col_edit:
