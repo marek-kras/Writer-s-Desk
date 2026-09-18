@@ -800,6 +800,11 @@ elif st.session_state.mode == 'add':
                 if not new_orig_title.strip():
                     st.error("Tytuł roboczy jest wymagany!")
                 else:
+                    if new_author_name_input.strip():
+                        created_aid = insert_author(new_author_name_input.strip())
+                        if created_aid:
+                            new_author_id = created_aid
+
                     new_id = insert_work(
                         new_orig_title.strip(),
                         new_final_title.strip() if new_final_title.strip() else None,
@@ -810,9 +815,9 @@ elif st.session_state.mode == 'add':
                         new_text,
                         new_notes,
                         new_tags,
-                        new_code.strip()
+                        new_code.strip(),
+                        new_author_id  # &lt;--- Dodany parametr Autora na końcu
                     )
-                    set_work_collections(new_id, selected_new_col_ids)
                     st.session_state.selected_work_id = new_id
                     st.session_state.mode = 'view'
                     st.success("Dodano nowy utwór!")
