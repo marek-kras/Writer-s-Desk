@@ -395,6 +395,35 @@ st.markdown("""
         color: #1F2937;
         margin-bottom: 15px;
     }
+    /* Stylizacja wydruku warsztatowego (Ctrl + P) */
+    @media print {
+        [data-testid="stSidebar"], header, footer, .stButton, .no-print {
+            display: none !important;
+        }
+        .main .block-container {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .workshop-print-page {
+            font-family: 'Georgia', serif;
+            color: #000000;
+            padding: 40px;
+        }
+        .workshop-header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .workshop-footer {
+            margin-top: 50px;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+            font-size: 0.85rem;
+            text-align: center;
+            color: #555;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
