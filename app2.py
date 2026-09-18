@@ -180,6 +180,61 @@ def set_work_collections(work_id, collection_ids):
     conn.commit()
     conn.close()
 
+# --- LOGIKA AUTORÓW (AUTHORS LOGIC) ---
+def init_authors_db():
+    """Tworzy tabelę autorów oraz dodaje kolumnę AuthorID do tblWork."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tblAuthor (
+            AuthorID INTEGER PRIMARY KEY AUTOINCREMENT,
+            AuthorName TEXT NOT NULL UNIQUE,
+            IsDefault INTEGER DEFAULT 0
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM tblAuthor")
+    if cursor.fetchone() == 0:
+        cursor.execute("INSERT INTO tblAuthor (AuthorName, IsDefault) VALUES (?, 1)", ("Autor / Operator",))
+        conn.commit()
+
+    # Dodanie kolumny AuthorID do tblWork (jeśli jeszcze nie istnieje)
+    try:
+        cursor.execute("ALTER TABLE tblWork ADD COLUMN AuthorID INTEGER DEFAULT 1")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    conn.close()
+
+init_authors_db()
+
+def fetch_all_authors():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tblAuthor ORDER BY IsDefault DESC, AuthorName ASC")
+    authors = cursor.fetchall()
+    conn.close()
+    return authors
+
+def insert_author(name):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO tblAuthor (AuthorName) VALUES (?)", (name.strip(),))
+        conn.commit()
+        new_id = cursor.lastrowid
+    except sqlite3.IntegrityError:
+        new_id = None
+    conn.close()
+    return new_id
+
+def get_author_name(author_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT AuthorName FROM tblAuthor WHERE AuthorID = ?", (author_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row['AuthorName'] if row else "Autor nieznany"
+
 # --- DATABASE CRUD OPERATIONS ---
 # Lista dostępnych gatunków (Predefined Genre Options)
 GENRE_OPTIONS = [
